@@ -1,1897 +1,318 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>에브리타운 리소스 ID 관리 시스템</title>
-<!-- SheetJS CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<!-- Supabase CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  /* ===== CSS Variables ===== */
-  :root {
-    --bg: #f5f3ef;
-    --bg-card: #ffffff;
-    --bg-card2: #faf9f6;
-    --header-bg: #0f2230;
-    --header-accent: #1a3a4f;
-    --teal: #1a9e8f;
-    --teal-light: #2bbfae;
-    --teal-dark: #157a6e;
-    --teal-muted: #e6f7f5;
-    --amber: #e8a020;
-    --amber-light: #fef3d9;
-    --red: #d94f4f;
-    --red-light: #fdeaea;
-    --text-primary: #1a2332;
-    --text-secondary: #5a6a7a;
-    --text-muted: #8a9aaa;
-    --border: #e0dbd0;
-    --border-light: #ede9e0;
-    --shadow: 0 2px 8px rgba(0,0,0,0.08);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
-    --radius: 10px;
-    --radius-sm: 6px;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>에브리팜2 ID 관리 시스템</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #0d47a1;
+            --secondary-color: #00695c;
+            --bg-color: #f4f6f8;
+            --beige-bg: #fdfbf7; /* 요청하신 연한 베이지색 */
+            --border-color: #e0e0e0;
+        }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Pretendard', sans-serif; margin: 0; background-color: var(--bg-color); color: #333; }
+        
+        /* 헤더 스타일 */
+        header { background-color: #1a2634; color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
+        header h1 { margin: 0; font-size: 20px; font-weight: 600; }
 
-  body {
-    font-family: 'Pretendard', 'Apple SD Gothic Neo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg);
-    color: var(--text-primary);
-    min-height: 100vh;
-    font-size: 14px;
-    line-height: 1.5;
-  }
+        /* 탭 네비게이션 */
+        .tabs { display: flex; background: white; border-bottom: 1px solid var(--border-color); padding: 0 40px; }
+        .tab { padding: 15px 20px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 500; color: #666; }
+        .tab.active { border-bottom-color: var(--secondary-color); color: var(--secondary-color); font-weight: bold; }
 
-  /* ===== Header ===== */
-  .app-header {
-    background: var(--header-bg);
-    color: white;
-    padding: 0 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 52px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-  }
-  .header-logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .logo-icon {
-    width: 32px; height: 32px;
-    background: var(--teal);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700; color: white;
-  }
-  .header-title { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
-  .header-title span { color: var(--teal-light); }
-  .header-right {
-    display: flex; align-items: center; gap: 12px;
-    font-size: 12px; color: rgba(255,255,255,0.6);
-  }
-  .server-status {
-    display: flex; align-items: center; gap: 6px;
-    padding: 4px 10px;
-    background: rgba(255,255,255,0.07);
-    border-radius: 20px;
-    font-size: 11px;
-  }
-  .status-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #4caf50;
-  }
-  .status-dot.error { background: var(--red); }
-  .status-dot.loading { background: var(--amber); animation: blink 1s infinite; }
+        /* 컨텐츠 영역 */
+        .content-area { padding: 40px; max-width: 1200px; margin: 0 auto; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        /* 카드 및 박스 스타일 */
+        .card { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .card-header { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
 
-  /* ===== Hero Banner ===== */
-  .hero-banner {
-    background: linear-gradient(135deg, #0f2230 0%, #1a3a50 60%, #0d3040 100%);
-    color: white;
-    padding: 28px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-  }
-  .hero-left {}
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    background: rgba(26,158,143,0.25);
-    color: var(--teal-light);
-    border: 1px solid rgba(26,158,143,0.4);
-    border-radius: 20px;
-    padding: 3px 12px;
-    font-size: 11px;
-    font-weight: 600;
-    margin-bottom: 10px;
-    letter-spacing: 0.3px;
-  }
-  .hero-title { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
-  .hero-desc { font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.6; }
-  .hero-stats {
-    display: flex; gap: 12px; flex-shrink: 0;
-  }
-  .stat-card {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: var(--radius);
-    padding: 16px 20px;
-    text-align: center;
-    min-width: 80px;
-  }
-  .stat-icon { font-size: 18px; margin-bottom: 6px; }
-  .stat-val { font-size: 22px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
-  .stat-label { font-size: 11px; color: rgba(255,255,255,0.5); }
+        /* 엑셀 업로드 영역 */
+        .upload-zone { border: 2px dashed #b0bec5; border-radius: 8px; padding: 50px; text-align: center; background: #fafafa; cursor: pointer; transition: 0.3s; }
+        .upload-zone:hover { background: #f0f4f8; border-color: var(--secondary-color); }
+        
+        /* ID 선점 (수동 추가) 영역 */
+        .reserve-group { margin-bottom: 30px; background: white; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+        .reserve-group-header { background: #fff8e1; padding: 15px 20px; font-weight: bold; border-bottom: 1px solid var(--border-color); }
+        .reserve-row { display: flex; gap: 10px; padding: 10px 20px; align-items: center; }
+        .reserve-row input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; flex: 1; }
+        .btn-add-row { margin: 10px 20px 20px; padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }
+        .btn-add-row:hover { background: #e0e0e0; }
 
-  /* ===== Tabs ===== */
-  .tabs-bar {
-    background: white;
-    border-bottom: 1px solid var(--border);
-    padding: 0 32px;
-    display: flex;
-    gap: 0;
-    position: sticky;
-    top: 52px;
-    z-index: 90;
-  }
-  .tab-btn {
-    display: flex; align-items: center; gap: 7px;
-    padding: 14px 20px;
-    font-size: 13px; font-weight: 500;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border: none; background: none;
-    border-bottom: 2.5px solid transparent;
-    transition: all 0.2s;
-    position: relative;
-    white-space: nowrap;
-  }
-  .tab-btn:hover { color: var(--teal); }
-  .tab-btn.active { color: var(--teal); border-bottom-color: var(--teal); font-weight: 600; }
-  .tab-badge {
-    background: var(--teal);
-    color: white;
-    border-radius: 10px;
-    padding: 1px 7px;
-    font-size: 10px;
-    font-weight: 700;
-    min-width: 18px;
-    text-align: center;
-  }
-  .tab-badge.amber { background: var(--amber); }
+        /* 통합 결과 뷰 (연한 베이지색 적용) */
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .result-card { background-color: var(--beige-bg); border: 1px solid #e8e6df; border-radius: 12px; padding: 20px; }
+        .result-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #e8e6df; padding-bottom: 10px; }
+        .result-data { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .highlight-id { color: var(--secondary-color); font-weight: bold; font-size: 16px; }
+        .temp-badge { background: #ffecb3; color: #f57f17; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-left: 5px; }
 
-  /* ===== Main Content ===== */
-  .main-content {
-    max-width: 1440px;
-    margin: 0 auto;
-    padding: 28px 32px;
-  }
-
-  .section-header { margin-bottom: 24px; }
-  .section-title { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; color: var(--text-primary); }
-  .section-desc { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
-
-  /* ===== Cards ===== */
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-  }
-  .card-header {
-    padding: 18px 22px;
-    border-bottom: 1px solid var(--border-light);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .card-title {
-    display: flex; align-items: center; gap: 10px;
-    font-weight: 600; font-size: 15px;
-  }
-  .card-icon {
-    width: 32px; height: 32px;
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px;
-  }
-  .card-body { padding: 22px; }
-
-  /* ===== Upload Area ===== */
-  .upload-zone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 48px 32px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: var(--bg-card2);
-  }
-  .upload-zone:hover, .upload-zone.drag-over {
-    border-color: var(--teal);
-    background: var(--teal-muted);
-  }
-  .upload-icon { font-size: 40px; margin-bottom: 14px; color: var(--teal); }
-  .upload-title { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
-  .upload-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
-  #fileInput { display: none; }
-
-  .uploaded-file {
-    display: flex; align-items: center; gap: 12px;
-    padding: 14px 18px;
-    background: var(--teal-muted);
-    border: 1px solid rgba(26,158,143,0.2);
-    border-radius: var(--radius);
-    margin-top: 16px;
-  }
-  .uploaded-file-icon { font-size: 22px; }
-  .uploaded-file-info { flex: 1; }
-  .uploaded-file-name { font-size: 13px; font-weight: 600; color: var(--teal-dark); }
-  .uploaded-file-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-  /* ===== Buttons ===== */
-  .btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 16px;
-    border-radius: var(--radius-sm);
-    font-size: 13px; font-weight: 600;
-    cursor: pointer; border: none;
-    transition: all 0.2s;
-    text-decoration: none;
-  }
-  .btn-primary {
-    background: var(--teal);
-    color: white;
-  }
-  .btn-primary:hover { background: var(--teal-dark); }
-  .btn-outline {
-    background: white;
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
-  }
-  .btn-outline:hover { border-color: var(--teal); color: var(--teal); }
-  .btn-danger {
-    background: white;
-    color: var(--red);
-    border: 1px solid rgba(217,79,79,0.3);
-  }
-  .btn-danger:hover { background: var(--red-light); }
-  .btn-amber {
-    background: var(--amber);
-    color: white;
-  }
-  .btn-amber:hover { background: #c88510; }
-  .btn-sm { padding: 5px 11px; font-size: 12px; }
-  .btn-xs { padding: 3px 8px; font-size: 11px; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* ===== Category Card (ID 선점 탭) ===== */
-  .reserve-card {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: 16px;
-    overflow: hidden;
-  }
-  .reserve-card-header {
-    padding: 14px 20px;
-    display: flex; align-items: center; gap: 12px;
-    background: var(--bg-card2);
-    border-bottom: 1px solid var(--border-light);
-  }
-  .reserve-cat-name { font-size: 15px; font-weight: 700; }
-  .reserve-cat-sheet {
-    font-size: 11px; color: var(--text-muted);
-    background: #f0ede6;
-    border-radius: 4px;
-    padding: 2px 8px;
-  }
-  .range-badge {
-    font-size: 11px;
-    color: var(--teal-dark);
-    background: var(--teal-muted);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-weight: 600;
-  }
-  .range-badge.amber {
-    color: #7a5500;
-    background: var(--amber-light);
-  }
-  .reserve-count {
-    margin-left: auto;
-    font-size: 12px;
-    color: var(--amber);
-    font-weight: 600;
-    background: var(--amber-light);
-    padding: 3px 10px;
-    border-radius: 12px;
-  }
-  .reserve-card-body { padding: 18px 20px; }
-  .input-row {
-    display: grid;
-    grid-template-columns: 180px 1fr 36px;
-    gap: 8px;
-    margin-bottom: 8px;
-    align-items: start;
-  }
-  .input-group { display: flex; flex-direction: column; }
-  .input-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-  .form-input {
-    width: 100%;
-    padding: 7px 10px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    color: var(--text-primary);
-    background: white;
-    transition: border-color 0.15s;
-    outline: none;
-  }
-  .form-input:focus { border-color: var(--teal); }
-  .form-input.error { border-color: var(--red); }
-  .error-msg {
-    font-size: 11px;
-    color: var(--red);
-    margin-top: 3px;
-    min-height: 16px;
-  }
-  .input-row-actions {
-    display: flex; align-items: flex-end; padding-bottom: 2px;
-  }
-  .btn-remove-row {
-    width: 32px; height: 32px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: white;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--text-muted);
-    font-size: 16px;
-    transition: all 0.15s;
-  }
-  .btn-remove-row:hover { border-color: var(--red); color: var(--red); background: var(--red-light); }
-  .reserve-actions {
-    display: flex; align-items: center; gap: 10px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-light);
-  }
-  .reserved-list { margin-top: 16px; }
-  .reserved-list-title { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
-  .reserved-items { display: flex; flex-wrap: wrap; gap: 8px; }
-  .reserved-item {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: var(--amber-light);
-    border: 1px solid rgba(232,160,32,0.3);
-    border-radius: 6px;
-    padding: 4px 10px 4px 8px;
-    font-size: 12px;
-  }
-  .reserved-item-id { font-weight: 700; color: var(--text-primary); }
-  .badge-temp {
-    background: var(--amber);
-    color: white;
-    border-radius: 4px;
-    padding: 1px 5px;
-    font-size: 10px;
-    font-weight: 700;
-  }
-  .reserved-item-name { color: var(--text-secondary); }
-  .btn-del-item {
-    background: none; border: none; cursor: pointer;
-    color: var(--text-muted); font-size: 14px; line-height: 1;
-    padding: 0; margin-left: 2px;
-    transition: color 0.15s;
-  }
-  .btn-del-item:hover { color: var(--red); }
-
-  /* ===== Summary Grid ===== */
-  .summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 16px;
-  }
-  .summary-card {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    transition: box-shadow 0.2s;
-  }
-  .summary-card:hover { box-shadow: var(--shadow-md); }
-  .summary-card-header {
-    padding: 14px 18px;
-    display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-card2);
-  }
-  .summary-cat-name { font-size: 15px; font-weight: 700; }
-  .summary-cat-icon {
-    width: 34px; height: 34px;
-    background: var(--amber-light);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
-  }
-  .summary-body { padding: 14px 18px; }
-  .summary-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 5px 0;
-    font-size: 13px;
-    border-bottom: 1px solid var(--border-light);
-  }
-  .summary-row:last-child { border-bottom: none; }
-  .summary-key { color: var(--text-secondary); }
-  .summary-val { font-weight: 600; color: var(--text-primary); }
-  .summary-val.teal { color: var(--teal); font-size: 15px; }
-  .summary-val.amber { color: var(--amber); }
-  .summary-ranges {
-    display: flex; flex-wrap: wrap; gap: 4px;
-    margin-top: 2px;
-  }
-  .summary-range-badge {
-    font-size: 11px; color: var(--text-muted);
-    background: #f0ede6;
-    border-radius: 4px;
-    padding: 2px 7px;
-  }
-  .summary-detail-toggle {
-    text-align: center;
-    padding: 8px;
-    border-top: 1px solid var(--border-light);
-    cursor: pointer;
-    font-size: 12px;
-    color: var(--teal);
-    transition: background 0.15s;
-    user-select: none;
-  }
-  .summary-detail-toggle:hover { background: var(--teal-muted); }
-  .summary-detail-body {
-    display: none;
-    padding: 12px 18px;
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-card2);
-  }
-  .summary-detail-body.open { display: block; }
-  .detail-section-title { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .detail-items { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
-  .detail-item {
-    display: inline-flex; align-items: center; gap: 4px;
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 3px 8px;
-    font-size: 11px;
-  }
-  .detail-item.temp {
-    border-color: rgba(232,160,32,0.4);
-    background: var(--amber-light);
-  }
-  .detail-id { font-weight: 700; }
-  .detail-name { color: var(--text-secondary); }
-
-  /* ===== Settings Tab ===== */
-  .settings-container {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-  .settings-header {
-    padding: 18px 22px;
-    display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-card2);
-  }
-  .settings-title-block {}
-  .settings-main-title { font-size: 16px; font-weight: 700; }
-  .settings-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
-  .settings-actions { display: flex; gap: 10px; }
-
-  .cat-setting-item {
-    border-bottom: 1px solid var(--border-light);
-    padding: 18px 22px;
-    transition: background 0.15s;
-  }
-  .cat-setting-item:last-child { border-bottom: none; }
-  .cat-setting-item:hover { background: var(--bg-card2); }
-  .cat-setting-row {
-    display: flex; align-items: flex-start; justify-content: space-between;
-  }
-  .cat-setting-left {}
-  .cat-setting-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
-  .cat-setting-sheet {
-    display: inline-block;
-    font-size: 11px; color: var(--teal-dark);
-    background: var(--teal-muted);
-    border-radius: 4px; padding: 2px 8px;
-    margin-left: 8px;
-    font-weight: 600;
-  }
-  .cat-setting-meta { margin-top: 10px; display: flex; gap: 32px; }
-  .cat-meta-block {}
-  .cat-meta-label { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; font-weight: 600; }
-  .cat-ranges { display: flex; flex-direction: column; gap: 4px; }
-  .cat-range-row { font-size: 13px; color: var(--text-primary); }
-  .cat-cols { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-  .cat-setting-btns { display: flex; gap: 8px; }
-
-  /* ===== Modal ===== */
-  .modal-overlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 1000;
-    align-items: center; justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal-box {
-    background: white;
-    border-radius: 12px;
-    padding: 28px;
-    width: 560px;
-    max-height: 80vh;
-    overflow-y: auto;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.2);
-  }
-  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
-  .form-row { margin-bottom: 14px; }
-  .form-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 5px; display: block; }
-  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-light); }
-
-  .ranges-editor {}
-  .range-editor-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 36px;
-    gap: 8px;
-    margin-bottom: 8px;
-    align-items: center;
-  }
-  .range-sep { text-align: center; font-size: 12px; color: var(--text-muted); }
-
-  /* ===== Toast ===== */
-  #toast-container {
-    position: fixed;
-    top: 64px; right: 24px;
-    z-index: 9999;
-    display: flex; flex-direction: column; gap: 8px;
-  }
-  .toast {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 18px;
-    font-size: 13px;
-    box-shadow: var(--shadow-md);
-    display: flex; align-items: center; gap: 10px;
-    min-width: 240px;
-    animation: slideIn 0.3s ease;
-  }
-  .toast.success { border-left: 4px solid #4caf50; }
-  .toast.error { border-left: 4px solid var(--red); }
-  .toast.info { border-left: 4px solid var(--teal); }
-  @keyframes slideIn {
-    from { transform: translateX(20px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-
-  /* ===== Upload Stats ===== */
-  .upload-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin-top: 20px;
-  }
-  .upload-stat-card {
-    background: var(--bg-card2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px 18px;
-    text-align: center;
-  }
-  .upload-stat-val { font-size: 28px; font-weight: 700; color: var(--teal); line-height: 1; margin-bottom: 6px; }
-  .upload-stat-label { font-size: 12px; color: var(--text-muted); }
-
-  .save-status-bar {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 16px;
-    background: var(--bg-card2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-top: 16px;
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-  .save-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4caf50; flex-shrink: 0; }
-  .save-status-dot.saving { background: var(--amber); animation: blink 1s infinite; }
-  .save-status-dot.error { background: var(--red); }
-
-  /* ===== Misc ===== */
-  .empty-state {
-    text-align: center;
-    padding: 40px;
-    color: var(--text-muted);
-    font-size: 13px;
-  }
-  .empty-state-icon { font-size: 32px; margin-bottom: 10px; }
-
-  .tab-content { display: none; }
-  .tab-content.active { display: block; }
-
-  .inline-badge {
-    display: inline-flex; align-items: center;
-    background: var(--teal-muted);
-    color: var(--teal-dark);
-    border-radius: 4px;
-    padding: 2px 7px;
-    font-size: 11px;
-    font-weight: 600;
-  }
-
-  hr.divider {
-    border: none;
-    border-top: 1px solid var(--border-light);
-    margin: 20px 0;
-  }
-
-  @media (max-width: 768px) {
-    .hero-stats { display: none; }
-    .hero-banner { padding: 20px 16px; }
-    .main-content { padding: 16px; }
-    .tabs-bar { padding: 0 16px; overflow-x: auto; }
-  }
-</style>
+        /* 설정 영역 */
+        .setting-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .setting-row input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        button.primary { background: var(--secondary-color); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        button.primary:hover { background: #004d40; }
+    </style>
 </head>
 <body>
 
-<!-- ===== Constants (교체 필요) ===== -->
-<script>
-  const SUPABASE_URL = 'https://fbchqmgzchgypnjtpkmt.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiY2hxbWd6Y2hneXBuanRwa210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwODMzMTMsImV4cCI6MjA4ODY1OTMxM30.W4jUGHNpr-oFzz6_XQoaTryoSffM0jckwzVvyPZGXtQ';
-  const SHARED_PAGE_ID = 'https://jihyelim-afk.github.io/resourceid/';
-</script>
+    <header>
+        <h1>에브리팜2 ID 관리 시스템</h1>
+        <div>총 데이터: <span id="total-count">0</span>개</div>
+    </header>
 
-<!-- Toast Container -->
-<div id="toast-container"></div>
-
-<!-- Modal -->
-<div class="modal-overlay" id="catModal">
-  <div class="modal-box">
-    <div class="modal-title" id="modalTitle">카테고리 추가</div>
-    <div class="form-row">
-      <label class="form-label">카테고리명 *</label>
-      <input class="form-input" id="mCatName" placeholder="예: 공장" />
-    </div>
-    <div class="form-row">
-      <label class="form-label">참조 시트명 *</label>
-      <input class="form-input" id="mSheetName" placeholder="예: 공장 시트" />
-    </div>
-    <div class="form-row">
-      <label class="form-label">ID 범위 * (여러 개 가능)</label>
-      <div class="ranges-editor" id="rangesEditor"></div>
-      <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="addRangeRow()">+ 범위 추가</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="form-row">
-        <label class="form-label">ID 열 (알파벳) *</label>
-        <input class="form-input" id="mIdCol" placeholder="예: B" maxlength="2" />
-      </div>
-      <div class="form-row">
-        <label class="form-label">이름 열 (알파벳) *</label>
-        <input class="form-input" id="mNameCol" placeholder="예: F" maxlength="2" />
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal()">취소</button>
-      <button class="btn btn-primary" onclick="saveCategoryModal()">저장</button>
-    </div>
-  </div>
-</div>
-
-<!-- App Header -->
-<header class="app-header">
-  <div class="header-logo">
-    <div class="logo-icon">EF</div>
-    <div class="header-title">에브리팜2 <span>ID 관리 시스템</span></div>
-  </div>
-  <div class="header-right">
-    <div class="server-status" id="serverStatusBar">
-      <div class="status-dot loading" id="serverDot"></div>
-      <span id="serverStatusText">연결 중...</span>
-    </div>
-    <span>총 <strong id="headerTotalCount">0</strong>개 데이터</span>
-  </div>
-</header>
-
-<!-- Hero Banner -->
-<div class="hero-banner">
-  <div class="hero-left">
-    <div class="hero-badge">데이터 및 밸런싱</div>
-    <div class="hero-title">카테고리별 최신 ID 자동 추출 도구</div>
-    <div class="hero-desc">
-      엑셀 파일을 업로드하면 공장·테마파크·리조트·타워·조경물 등<br>
-      각 카테고리의 최신 ID와 다음 사용 가능 번호를 자동으로 불러옵니다.
-    </div>
-  </div>
-  <div class="hero-stats">
-    <div class="stat-card">
-      <div class="stat-icon">📊</div>
-      <div class="stat-val" id="statAutoCount">0</div>
-      <div class="stat-label">자동 로드</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon">🔖</div>
-      <div class="stat-val" id="statManualCount">0</div>
-      <div class="stat-label">선점 등록</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon">📁</div>
-      <div class="stat-val" id="statCatCount">0</div>
-      <div class="stat-label">카테고리</div>
-    </div>
-  </div>
-</div>
-
-<!-- Tabs Bar -->
-<div class="tabs-bar">
-  <button class="tab-btn active" data-tab="upload" onclick="switchTab('upload',this)">
-    📊 엑셀 업로드
-  </button>
-  <button class="tab-btn" data-tab="reserve" onclick="switchTab('reserve',this)">
-    🔖 ID 선점 <span class="tab-badge amber" id="tabBadgeReserve">0</span>
-  </button>
-  <button class="tab-btn" data-tab="summary" onclick="switchTab('summary',this)">
-    📋 통합 결과 <span class="tab-badge" id="tabBadgeSummary">0</span>
-  </button>
-  <button class="tab-btn" data-tab="settings" onclick="switchTab('settings',this)">
-    ⚙️ 카테고리 설정
-  </button>
-</div>
-
-<!-- Main Content -->
-<div class="main-content">
-
-  <!-- ===== TAB: 업로드 ===== -->
-  <div class="tab-content active" id="tab-upload">
-    <div class="section-header">
-      <div class="section-title">엑셀 파일 업로드</div>
-      <div class="section-desc">데이터 및 밸런싱 파일을 업로드하면 카테고리별로 자동 분류됩니다</div>
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('upload')">엑셀 업로드</div>
+        <div class="tab" onclick="switchTab('reserve')">ID 선점 (수동)</div>
+        <div class="tab" onclick="switchTab('result')">통합 결과</div>
+        <div class="tab" onclick="switchTab('settings')">카테고리 설정</div>
     </div>
 
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">
-          <div class="card-icon" style="background:#e6f7f5">📊</div>
-          엑셀 파일 업로드
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="section-desc" style="margin-bottom:16px">데이터 및 밸런싱 파일을 업로드하여 자동으로 ID를 불러옵니다</div>
-
-        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-          <div class="upload-icon">📋</div>
-          <div class="upload-title">엑셀 파일을 드래그하거나 클릭하여 업로드</div>
-          <div class="upload-desc">.xlsx, .xls 파일만 지원됩니다</div>
-          <button class="btn btn-primary" onclick="event.stopPropagation();document.getElementById('fileInput').click()">
-            ⬆️ 파일 선택
-          </button>
-          <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileSelect(event)" />
-        </div>
-
-        <div id="uploadedFileInfo" style="display:none" class="uploaded-file">
-          <div class="uploaded-file-icon">📗</div>
-          <div class="uploaded-file-info">
-            <div class="uploaded-file-name" id="uploadedFileName">파일명</div>
-            <div class="uploaded-file-meta" id="uploadedFileMeta">업로드 완료</div>
-          </div>
-          <button class="btn btn-outline btn-sm" onclick="clearUpload()">× 제거</button>
-        </div>
-
-        <div class="upload-stats" id="uploadStats">
-          <div class="upload-stat-card">
-            <div class="upload-stat-val" id="uploadStatAuto">0</div>
-            <div class="upload-stat-label">자동 로드 항목</div>
-          </div>
-          <div class="upload-stat-card">
-            <div class="upload-stat-val" id="uploadStatManual">0</div>
-            <div class="upload-stat-label">선점 등록 항목</div>
-          </div>
-          <div class="upload-stat-card">
-            <div class="upload-stat-val" id="uploadStatCat">0</div>
-            <div class="upload-stat-label">카테고리 수</div>
-          </div>
-        </div>
-
-        <div class="save-status-bar" id="saveStatusBar">
-          <div class="save-status-dot" id="saveStatusDot"></div>
-          <span id="saveStatusText">서버 연결 대기중...</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: ID 선점 ===== -->
-  <div class="tab-content" id="tab-reserve">
-    <div class="section-header">
-      <div class="section-title">ID 선점 등록</div>
-      <div class="section-desc">사용 예정인 ID를 미리 선점하여 중복을 방지하세요. 선점된 항목은 <strong>임시</strong>로 표시됩니다.</div>
-    </div>
-
-    <div class="card" style="margin-bottom:20px">
-      <div class="card-header">
-        <div class="card-title">
-          <div class="card-icon" style="background:var(--amber-light)">🔖</div>
-          ID 선점 추가
-          <span style="font-size:12px;color:var(--text-muted);font-weight:400">카테고리별로 여러 ID를 한 번에 선점 등록하세요</span>
-        </div>
-        <button class="btn btn-danger btn-sm" onclick="clearAllManual()">🗑️ 전체 삭제</button>
-      </div>
-      <div class="card-body" id="reserveFormContainer">
-        <div class="empty-state">
-          <div class="empty-state-icon">📁</div>
-          카테고리를 불러오는 중...
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: 통합 결과 ===== -->
-  <div class="tab-content" id="tab-summary">
-    <div class="section-header">
-      <div class="section-title">통합 결과 뷰</div>
-      <div class="section-desc">자동 로드 데이터와 선점 등록 데이터를 통합하여 확인합니다</div>
-    </div>
-
-    <div class="card">
-      <div class="card-body" style="text-align:center;padding:28px 22px 18px">
-        <div style="font-size:20px;font-weight:700;letter-spacing:-0.4px;margin-bottom:6px">통합 결과 뷰</div>
-        <div style="font-size:13px;color:var(--text-muted)">자동 로드 + 수동 추가 데이터 통합 표시</div>
-      </div>
-      <div class="card-body" style="padding-top:0">
-        <div class="summary-grid" id="summaryGrid">
-          <div class="empty-state" style="grid-column:1/-1">
-            <div class="empty-state-icon">📊</div>
-            데이터를 불러오는 중...
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: 카테고리 설정 ===== -->
-  <div class="tab-content" id="tab-settings">
-    <div class="section-header">
-      <div class="section-title">카테고리 설정</div>
-      <div class="section-desc">엑셀 시트별 카테고리와 ID 범위를 설정하세요</div>
-    </div>
-
-    <div class="settings-container">
-      <div class="settings-header">
-        <div class="settings-title-block">
-          <div class="settings-main-title">카테고리 설정</div>
-          <div class="settings-subtitle">엑셀 시트별 카테고리를 정의하고 ID 범위를 설정하세요</div>
-        </div>
-        <div class="settings-actions">
-          <button class="btn btn-outline btn-sm" onclick="resetCategoriesToDefault()">↺ 기본값으로 초기화</button>
-          <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ 카테고리 추가</button>
-        </div>
-      </div>
-      <div id="categoriesList"></div>
-    </div>
-  </div>
-
-</div>
-
-<!-- ===== JavaScript ===== -->
-<script>
-// =============================================
-// State
-// =============================================
-let supabase = null;
-let appState = {
-  categories: [],
-  uploadedFileName: null,
-  autoData: {}, // { catName: [{id, name}] }
-  manualData: {}, // { catName: [{id, name}] }
-  lastSavedAt: null
-};
-let editingCatIndex = null; // null=add, number=edit
-
-// =============================================
-// Default Categories
-// =============================================
-const DEFAULT_CATEGORIES = [
-  {
-    name: '공장',
-    sheet: '공장 시트',
-    ranges: [{min: 0, max: 53999}],
-    idCol: 'B',
-    nameCol: 'F'
-  },
-  {
-    name: '테마파크',
-    sheet: '공장 시트',
-    ranges: [{min: 93000, max: 93999}, {min: 94100, max: 94999}],
-    idCol: 'B',
-    nameCol: 'F'
-  },
-  {
-    name: '리조트',
-    sheet: '리조트 시트',
-    ranges: [{min: 99000, max: 99999}],
-    idCol: 'B',
-    nameCol: 'F'
-  },
-  {
-    name: '타워',
-    sheet: '리조트 시트',
-    ranges: [{min: 930001, max: 939999}],
-    idCol: 'B',
-    nameCol: 'F'
-  },
-  {
-    name: '조경물',
-    sheet: '조경물 시트',
-    ranges: [{min: 60000, max: 69999}],
-    idCol: 'B',
-    nameCol: 'F'
-  },
-  {
-    name: '하늘조경물',
-    sheet: '조경물 시트',
-    ranges: [{min: 70000, max: 79999}],
-    idCol: 'B',
-    nameCol: 'F'
-  },
-  {
-    name: '타운빌딩',
-    sheet: '타운 시트',
-    ranges: [{min: 80000, max: 89999}],
-    idCol: 'B',
-    nameCol: 'F'
-  }
-];
-
-// =============================================
-// Supabase Init
-// =============================================
-function initSupabase() {
-  try {
-    const { createClient } = supabaseJs;
-    if (SUPABASE_URL === 'https://YOUR_PROJECT.supabase.co') {
-      console.warn('Supabase not configured - running in local mode');
-      updateServerStatus('local', '로컬 모드');
-      return;
-    }
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    updateServerStatus('ok', '서버 연결됨');
-  } catch (e) {
-    console.error('Supabase init error:', e);
-    updateServerStatus('error', '연결 오류');
-  }
-}
-
-function updateServerStatus(type, text) {
-  const dot = document.getElementById('serverDot');
-  const txt = document.getElementById('serverStatusText');
-  dot.className = 'status-dot';
-  if (type === 'ok') dot.style.background = '#4caf50';
-  else if (type === 'error') { dot.classList.add('error'); }
-  else if (type === 'loading') { dot.classList.add('loading'); }
-  else { dot.style.background = '#aaa'; }
-  txt.textContent = text;
-}
-
-// =============================================
-// Server State Functions
-// =============================================
-async function loadSharedStateFromServer() {
-  if (!supabase) return null;
-  try {
-    updateServerStatus('loading', '불러오는 중...');
-    const { data, error } = await supabase
-      .from('shared_page_state')
-      .select('payload, updated_at')
-      .eq('id', SHARED_PAGE_ID)
-      .single();
-    if (error && error.code !== 'PGRST116') throw error;
-    updateServerStatus('ok', '서버 연결됨');
-    return data ? data.payload : null;
-  } catch (e) {
-    console.error('Load error:', e);
-    updateServerStatus('error', '불러오기 실패');
-    return null;
-  }
-}
-
-async function saveSharedStateToServer() {
-  if (!supabase) {
-    saveToLocalStorage();
-    updateSaveStatus('saved', `로컬 저장 완료 (${new Date().toLocaleTimeString()})`);
-    return;
-  }
-  try {
-    updateSaveStatus('saving', '저장 중...');
-    const payload = getCurrentStatePayload();
-    const { error } = await supabase
-      .from('shared_page_state')
-      .upsert({ id: SHARED_PAGE_ID, payload: payload, updated_at: new Date().toISOString() });
-    if (error) throw error;
-    appState.lastSavedAt = new Date().toISOString();
-    saveToLocalStorage();
-    updateSaveStatus('saved', `서버 저장 완료 (${new Date().toLocaleTimeString()})`);
-    showToast('저장되었습니다', 'success');
-  } catch (e) {
-    console.error('Save error:', e);
-    updateSaveStatus('error', '저장 실패');
-    showToast('서버 저장 실패: ' + e.message, 'error');
-  }
-}
-
-function getCurrentStatePayload() {
-  return {
-    categories: appState.categories,
-    uploadedFileName: appState.uploadedFileName,
-    autoData: appState.autoData,
-    manualData: appState.manualData,
-    lastSavedAt: new Date().toISOString()
-  };
-}
-
-function mergeLocalAndServerState(serverPayload) {
-  if (!serverPayload) return;
-  appState.categories = serverPayload.categories || DEFAULT_CATEGORIES;
-  appState.uploadedFileName = serverPayload.uploadedFileName || null;
-  appState.autoData = serverPayload.autoData || {};
-  appState.manualData = serverPayload.manualData || {};
-  appState.lastSavedAt = serverPayload.lastSavedAt || null;
-}
-
-function updateSaveStatus(type, text) {
-  const dot = document.getElementById('saveStatusDot');
-  const txt = document.getElementById('saveStatusText');
-  dot.className = 'save-status-dot';
-  if (type === 'saving') dot.classList.add('saving');
-  else if (type === 'error') dot.classList.add('error');
-  txt.textContent = text;
-}
-
-// =============================================
-// LocalStorage
-// =============================================
-function saveToLocalStorage() {
-  try {
-    localStorage.setItem('ef2_state', JSON.stringify(getCurrentStatePayload()));
-  } catch (e) { console.warn('LocalStorage save failed:', e); }
-}
-
-function loadFromLocalStorage() {
-  try {
-    const raw = localStorage.getItem('ef2_state');
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    console.warn('LocalStorage load failed:', e);
-    return null;
-  }
-}
-
-// =============================================
-// Excel Parsing
-// =============================================
-async function loadWorkbook(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const wb = XLSX.read(data, { type: 'array' });
-        resolve(wb);
-      } catch (err) { reject(err); }
-    };
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-function colLetterToIndex(col) {
-  // Convert column letter(s) to 0-based index
-  col = col.toUpperCase().trim();
-  let idx = 0;
-  for (let i = 0; i < col.length; i++) {
-    idx = idx * 26 + (col.charCodeAt(i) - 64);
-  }
-  return idx - 1;
-}
-
-function parseCategoryData(workbook, category) {
-  const result = [];
-  const sheetName = Object.keys(workbook.Sheets).find(
-    s => s.trim().toLowerCase() === category.sheet.trim().toLowerCase()
-  );
-  if (!sheetName) {
-    console.warn(`Sheet not found: ${category.sheet}`);
-    return result;
-  }
-  const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
-  const idColIdx = colLetterToIndex(category.idCol);
-  const nameColIdx = colLetterToIndex(category.nameCol);
-
-  for (let r = 1; r < rows.length; r++) {
-    const row = rows[r];
-    const rawId = row[idColIdx];
-    const rawName = row[nameColIdx];
-    if (rawId === '' || rawId === null || rawId === undefined) continue;
-    const id = parseInt(String(rawId).trim(), 10);
-    if (isNaN(id)) continue;
-
-    // Check if id falls in any range of this category
-    const inRange = category.ranges.some(rng => id >= rng.min && id <= rng.max);
-    if (!inRange) continue;
-
-    result.push({ id, name: String(rawName || '').trim() });
-  }
-  return result;
-}
-
-// =============================================
-// Next Available ID
-// =============================================
-function getNextAvailableId(category, autoItems, manualItems) {
-  const allIds = new Set([
-    ...autoItems.map(x => x.id),
-    ...manualItems.map(x => x.id)
-  ]);
-  if (allIds.size === 0) {
-    // First range, first id
-    if (category.ranges.length > 0) return category.ranges[0].min;
-    return null;
-  }
-  const maxId = Math.max(...allIds);
-
-  // Try from maxId+1
-  let candidate = maxId + 1;
-  for (const rng of category.ranges) {
-    // Find which range candidate belongs to or start from
-    if (candidate <= rng.max) {
-      // Try from candidate or rng.min whichever is larger
-      const start = Math.max(candidate, rng.min);
-      for (let id = start; id <= rng.max; id++) {
-        if (!allIds.has(id)) return id;
-      }
-    }
-  }
-  // All exhausted - try filling gaps in ranges
-  for (const rng of category.ranges) {
-    for (let id = rng.min; id <= rng.max; id++) {
-      if (!allIds.has(id)) return id;
-    }
-  }
-  return null;
-}
-
-// =============================================
-// File Handling
-// =============================================
-function handleFileSelect(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  processFile(file);
-}
-
-async function processFile(file) {
-  try {
-    showToast('파일 분석 중...', 'info');
-    const wb = await loadWorkbook(file);
-    const newAutoData = {};
-    for (const cat of appState.categories) {
-      const items = parseCategoryData(wb, cat);
-      newAutoData[cat.name] = items;
-    }
-    appState.autoData = newAutoData;
-    appState.uploadedFileName = file.name;
-    await saveSharedStateToServer();
-    applyStateToUI();
-    showToast(`분석 완료: ${file.name}`, 'success');
-  } catch (e) {
-    console.error('File process error:', e);
-    showToast('파일 분석 실패: ' + e.message, 'error');
-  }
-}
-
-function clearUpload() {
-  appState.autoData = {};
-  appState.uploadedFileName = null;
-  document.getElementById('fileInput').value = '';
-  saveSharedStateToServer();
-  applyStateToUI();
-  showToast('파일이 제거되었습니다', 'info');
-}
-
-// Drag and Drop
-function setupDragDrop() {
-  const zone = document.getElementById('uploadZone');
-  zone.addEventListener('dragover', e => {
-    e.preventDefault(); zone.classList.add('drag-over');
-  });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault(); zone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  });
-}
-
-// =============================================
-// Validation
-// =============================================
-function validateManualRow(catName, id, name, rowIndex, allRowIds) {
-  const errors = {};
-  const cat = appState.categories.find(c => c.name === catName);
-  if (!id && id !== 0) { errors.id = 'ID를 입력해주세요'; }
-  else if (isNaN(Number(id)) || !String(id).match(/^\d+$/)) { errors.id = '숫자만 입력 가능합니다'; }
-  else {
-    const numId = Number(id);
-    const inRange = cat && cat.ranges.some(r => numId >= r.min && numId <= r.max);
-    if (cat && !inRange) {
-      const rangeStr = cat.ranges.map(r => `${r.min.toLocaleString()}~${r.max.toLocaleString()}`).join(', ');
-      errors.id = `범위 오류 (${rangeStr})`;
-    } else {
-      // Check auto data
-      const autoItems = appState.autoData[catName] || [];
-      if (autoItems.some(x => x.id === numId)) errors.id = '자동 데이터에 이미 존재하는 ID입니다';
-      // Check existing manual
-      const manualItems = appState.manualData[catName] || [];
-      if (manualItems.some(x => x.id === numId)) errors.id = '이미 선점된 ID입니다';
-      // Check within same form (other rows)
-      const dupes = allRowIds.filter((v, i) => v === String(id) && i !== rowIndex);
-      if (dupes.length > 0) errors.id = '같은 폼 내에 중복된 ID입니다';
-    }
-  }
-  if (!name || !name.trim()) errors.name = '이름을 입력해주세요';
-  return errors;
-}
-
-// =============================================
-// UI: applyStateToUI
-// =============================================
-function applyStateToUI() {
-  updateStats();
-  renderUploadTab();
-  renderReservedTab();
-  renderSummaryTab();
-  renderSettingsTab();
-}
-
-function updateStats() {
-  let autoTotal = 0, manualTotal = 0;
-  for (const cat of appState.categories) {
-    autoTotal += (appState.autoData[cat.name] || []).length;
-    manualTotal += (appState.manualData[cat.name] || []).length;
-  }
-  const catCount = appState.categories.length;
-  document.getElementById('statAutoCount').textContent = autoTotal;
-  document.getElementById('statManualCount').textContent = manualTotal;
-  document.getElementById('statCatCount').textContent = catCount;
-  document.getElementById('headerTotalCount').textContent = autoTotal + manualTotal;
-  document.getElementById('tabBadgeReserve').textContent = manualTotal;
-  document.getElementById('tabBadgeSummary').textContent = catCount;
-}
-
-// =============================================
-// renderUploadTab
-// =============================================
-function renderUploadTab() {
-  const fileInfoEl = document.getElementById('uploadedFileInfo');
-  const fileNameEl = document.getElementById('uploadedFileName');
-  const fileMetaEl = document.getElementById('uploadedFileMeta');
-
-  if (appState.uploadedFileName) {
-    fileInfoEl.style.display = 'flex';
-    fileNameEl.textContent = appState.uploadedFileName;
-    let autoTotal = 0;
-    for (const cat of appState.categories) autoTotal += (appState.autoData[cat.name] || []).length;
-    fileMetaEl.textContent = `업로드 완료 · ${autoTotal}개 항목 로드됨`;
-  } else {
-    fileInfoEl.style.display = 'none';
-  }
-
-  let autoTotal = 0, manualTotal = 0;
-  for (const cat of appState.categories) {
-    autoTotal += (appState.autoData[cat.name] || []).length;
-    manualTotal += (appState.manualData[cat.name] || []).length;
-  }
-  document.getElementById('uploadStatAuto').textContent = autoTotal;
-  document.getElementById('uploadStatManual').textContent = manualTotal;
-  document.getElementById('uploadStatCat').textContent = appState.categories.length;
-
-  if (appState.lastSavedAt) {
-    const d = new Date(appState.lastSavedAt);
-    updateSaveStatus('saved', `마지막 저장: ${d.toLocaleString()}`);
-  }
-}
-
-// =============================================
-// renderReservedTab
-// =============================================
-function renderReservedTab() {
-  const container = document.getElementById('reserveFormContainer');
-  container.innerHTML = '';
-  if (appState.categories.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📁</div>카테고리가 없습니다.</div>';
-    return;
-  }
-  for (const cat of appState.categories) {
-    container.appendChild(buildReserveCard(cat));
-  }
-}
-
-function buildReserveCard(cat) {
-  const manualItems = appState.manualData[cat.name] || [];
-  const div = document.createElement('div');
-  div.className = 'reserve-card';
-  div.id = `reserve-card-${CSS.escape(cat.name)}`;
-
-  // Header
-  const header = document.createElement('div');
-  header.className = 'reserve-card-header';
-  const rangebadges = cat.ranges.map((r,i) =>
-    `<span class="range-badge${i>0?' amber':''}">${r.min.toLocaleString()}~${r.max.toLocaleString()}</span>`
-  ).join('');
-  header.innerHTML = `
-    <span class="reserve-cat-name">${escHtml(cat.name)}</span>
-    <span class="reserve-cat-sheet">${escHtml(cat.sheet)}</span>
-    ${rangebadges}
-    <span class="reserve-count" style="margin-left:auto">선점 ${manualItems.length}개</span>
-  `;
-
-  // Body
-  const body = document.createElement('div');
-  body.className = 'reserve-card-body';
-
-  // Input rows container
-  const rowsContainer = document.createElement('div');
-  rowsContainer.id = `input-rows-${cat.name}`;
-  const initRow = createInputRow(cat.name, 0);
-  rowsContainer.appendChild(initRow);
-
-  // Actions
-  const actions = document.createElement('div');
-  actions.className = 'reserve-actions';
-  actions.innerHTML = `
-    <button class="btn btn-outline btn-sm" onclick="addInputRow('${escHtml(cat.name)}')">+ 행 추가</button>
-    <button class="btn btn-amber btn-sm" onclick="registerManual('${escHtml(cat.name)}')">✓ ${escHtml(cat.name)} 선점 등록</button>
-  `;
-
-  // Reserved list
-  const reservedDiv = document.createElement('div');
-  reservedDiv.className = 'reserved-list';
-  reservedDiv.id = `reserved-list-${cat.name}`;
-  renderReservedList(cat.name, reservedDiv);
-
-  body.appendChild(rowsContainer);
-  body.appendChild(actions);
-  body.appendChild(reservedDiv);
-  div.appendChild(header);
-  div.appendChild(body);
-  return div;
-}
-
-function createInputRow(catName, rowIdx) {
-  const row = document.createElement('div');
-  row.className = 'input-row';
-  row.dataset.rowIdx = rowIdx;
-  row.innerHTML = `
-    <div class="input-group">
-      ${rowIdx === 0 ? '<div class="input-label">ID 번호</div>' : ''}
-      <input class="form-input" type="text" placeholder="예: 93875"
-        id="ir-id-${catName}-${rowIdx}"
-        oninput="validateInputRow('${escJs(catName)}', ${rowIdx})"
-        />
-      <div class="error-msg" id="ir-id-err-${catName}-${rowIdx}"></div>
-    </div>
-    <div class="input-group">
-      ${rowIdx === 0 ? '<div class="input-label">이름</div>' : ''}
-      <input class="form-input" type="text" placeholder="예: 테마파크 - 숲 속 체크포인트 I"
-        id="ir-name-${catName}-${rowIdx}"
-        oninput="validateInputRow('${escJs(catName)}', ${rowIdx})"
-        />
-      <div class="error-msg" id="ir-name-err-${catName}-${rowIdx}"></div>
-    </div>
-    <div class="input-row-actions">
-      <button class="btn-remove-row" onclick="removeInputRow('${escJs(catName)}', ${rowIdx})" title="삭제">×</button>
-    </div>
-  `;
-  return row;
-}
-
-function addInputRow(catName) {
-  const container = document.getElementById(`input-rows-${catName}`);
-  const rows = container.querySelectorAll('.input-row');
-  const newIdx = Date.now(); // unique index
-  const row = createInputRow(catName, newIdx);
-  container.appendChild(row);
-}
-
-function removeInputRow(catName, rowIdx) {
-  const container = document.getElementById(`input-rows-${catName}`);
-  const rows = container.querySelectorAll('.input-row');
-  if (rows.length <= 1) {
-    // Clear instead
-    const idInput = document.getElementById(`ir-id-${catName}-${rowIdx}`);
-    const nameInput = document.getElementById(`ir-name-${catName}-${rowIdx}`);
-    if (idInput) idInput.value = '';
-    if (nameInput) nameInput.value = '';
-    clearInputRowErrors(catName, rowIdx);
-    return;
-  }
-  const row = document.querySelector(`[id*="ir-id-${catName}-${rowIdx}"]`);
-  if (row) row.closest('.input-row').remove();
-}
-
-function clearInputRowErrors(catName, rowIdx) {
-  const idInput = document.getElementById(`ir-id-${catName}-${rowIdx}`);
-  const nameInput = document.getElementById(`ir-name-${catName}-${rowIdx}`);
-  const idErr = document.getElementById(`ir-id-err-${catName}-${rowIdx}`);
-  const nameErr = document.getElementById(`ir-name-err-${catName}-${rowIdx}`);
-  if (idInput) idInput.classList.remove('error');
-  if (nameInput) nameInput.classList.remove('error');
-  if (idErr) idErr.textContent = '';
-  if (nameErr) nameErr.textContent = '';
-}
-
-function getAllRowIds(catName) {
-  const container = document.getElementById(`input-rows-${catName}`);
-  if (!container) return [];
-  const rows = container.querySelectorAll('.input-row');
-  const ids = [];
-  rows.forEach(row => {
-    const rowIdx = row.dataset.rowIdx;
-    const idInput = document.getElementById(`ir-id-${catName}-${rowIdx}`);
-    ids.push(idInput ? idInput.value.trim() : '');
-  });
-  return ids;
-}
-
-function validateInputRow(catName, rowIdx) {
-  const idInput = document.getElementById(`ir-id-${catName}-${rowIdx}`);
-  const nameInput = document.getElementById(`ir-name-${catName}-${rowIdx}`);
-  const idErr = document.getElementById(`ir-id-err-${catName}-${rowIdx}`);
-  const nameErr = document.getElementById(`ir-name-err-${catName}-${rowIdx}`);
-  if (!idInput) return;
-
-  const allRowIds = getAllRowIds(catName);
-  const errors = validateManualRow(catName, idInput.value.trim(), nameInput.value.trim(), allRowIds.indexOf(idInput.value.trim()), allRowIds);
-
-  idInput.classList.toggle('error', !!errors.id);
-  nameInput.classList.toggle('error', !!errors.name);
-  if (idErr) idErr.textContent = errors.id || '';
-  if (nameErr) nameErr.textContent = errors.name || '';
-}
-
-function registerManual(catName) {
-  const container = document.getElementById(`input-rows-${catName}`);
-  if (!container) return;
-  const rows = container.querySelectorAll('.input-row');
-  const newItems = [];
-  let hasError = false;
-  let firstErrorInput = null;
-  const allRowIds = [];
-  rows.forEach(row => {
-    const rowIdx = row.dataset.rowIdx;
-    const idInput = document.getElementById(`ir-id-${catName}-${rowIdx}`);
-    allRowIds.push(idInput ? idInput.value.trim() : '');
-  });
-
-  rows.forEach(row => {
-    const rowIdx = row.dataset.rowIdx;
-    const idInput = document.getElementById(`ir-id-${catName}-${rowIdx}`);
-    const nameInput = document.getElementById(`ir-name-${catName}-${rowIdx}`);
-    if (!idInput) return;
-    const idVal = idInput.value.trim();
-    const nameVal = nameInput ? nameInput.value.trim() : '';
-
-    // Skip completely empty rows
-    if (!idVal && !nameVal) return;
-
-    const errors = validateManualRow(catName, idVal, nameVal,
-      allRowIds.findIndex((v,i) => v === idVal && document.getElementById(`ir-id-${catName}-${container.querySelectorAll('.input-row')[i]?.dataset.rowIdx}`) === idInput),
-      allRowIds
-    );
-
-    idInput.classList.toggle('error', !!errors.id);
-    nameInput.classList.toggle('error', !!errors.name);
-    document.getElementById(`ir-id-err-${catName}-${rowIdx}`).textContent = errors.id || '';
-    document.getElementById(`ir-name-err-${catName}-${rowIdx}`).textContent = errors.name || '';
-
-    if (errors.id || errors.name) {
-      hasError = true;
-      if (!firstErrorInput) firstErrorInput = errors.id ? idInput : nameInput;
-    } else {
-      newItems.push({ id: parseInt(idVal, 10), name: nameVal });
-    }
-  });
-
-  if (hasError) {
-    if (firstErrorInput) firstErrorInput.focus();
-    showToast('입력 오류가 있습니다. 확인 후 다시 시도하세요.', 'error');
-    return;
-  }
-  if (newItems.length === 0) {
-    showToast('등록할 항목이 없습니다.', 'error');
-    return;
-  }
-
-  // all-or-nothing: only reach here if no errors
-  if (!appState.manualData[catName]) appState.manualData[catName] = [];
-  appState.manualData[catName].push(...newItems);
-
-  // Clear form
-  container.innerHTML = '';
-  container.appendChild(createInputRow(catName, 0));
-
-  saveSharedStateToServer();
-  applyStateToUI();
-  showToast(`${catName} 선점 등록 완료 (${newItems.length}개)`, 'success');
-}
-
-function deleteManualItem(catName, id) {
-  if (!appState.manualData[catName]) return;
-  appState.manualData[catName] = appState.manualData[catName].filter(x => x.id !== id);
-  saveSharedStateToServer();
-  applyStateToUI();
-}
-
-function clearAllManual() {
-  if (!confirm('모든 선점 등록 데이터를 삭제할까요?')) return;
-  appState.manualData = {};
-  saveSharedStateToServer();
-  applyStateToUI();
-  showToast('전체 선점 데이터가 삭제되었습니다', 'info');
-}
-
-function renderReservedList(catName, container) {
-  const items = appState.manualData[catName] || [];
-  container.innerHTML = '';
-  if (items.length === 0) return;
-  const title = document.createElement('div');
-  title.className = 'reserved-list-title';
-  title.textContent = '선점된 ID 목록';
-  const itemsDiv = document.createElement('div');
-  itemsDiv.className = 'reserved-items';
-  for (const item of items) {
-    itemsDiv.innerHTML += `
-      <div class="reserved-item">
-        <span class="reserved-item-id">${item.id}</span>
-        <span class="badge-temp">임시</span>
-        <span class="reserved-item-name">${escHtml(item.name)}</span>
-        <button class="btn-del-item" onclick="deleteManualItem('${escJs(catName)}', ${item.id})" title="삭제">×</button>
-      </div>
-    `;
-  }
-  container.appendChild(title);
-  container.appendChild(itemsDiv);
-}
-
-// =============================================
-// renderSummaryTab
-// =============================================
-function renderSummaryTab() {
-  const grid = document.getElementById('summaryGrid');
-  grid.innerHTML = '';
-  for (const cat of appState.categories) {
-    grid.appendChild(buildSummaryCard(cat));
-  }
-}
-
-function buildSummaryCard(cat) {
-  const autoItems = appState.autoData[cat.name] || [];
-  const manualItems = appState.manualData[cat.name] || [];
-  const allItems = [...autoItems, ...manualItems];
-
-  let maxId = null;
-  if (allItems.length > 0) maxId = Math.max(...allItems.map(x => x.id));
-  const nextId = getNextAvailableId(cat, autoItems, manualItems);
-
-  const rangesStr = cat.ranges.map(r => `${r.min.toLocaleString()}~${r.max.toLocaleString()}`).join(' / ');
-
-  const card = document.createElement('div');
-  card.className = 'summary-card';
-  card.innerHTML = `
-    <div class="summary-card-header">
-      <div class="summary-cat-name">${escHtml(cat.name)}</div>
-      <div class="summary-cat-icon">📁</div>
-    </div>
-    <div class="summary-body">
-      <div class="summary-row">
-        <span class="summary-key">전체 데이터:</span>
-        <span class="summary-val">${allItems.length}개</span>
-      </div>
-      <div class="summary-row">
-        <span class="summary-key">자동: ${autoItems.length}개</span>
-        <span class="summary-val amber">임시: ${manualItems.length}개</span>
-      </div>
-      <div class="summary-row">
-        <span class="summary-key">최신 ID:</span>
-        <span class="summary-val">${maxId !== null ? maxId.toLocaleString() : '-'}</span>
-      </div>
-      <div class="summary-row">
-        <span class="summary-key">다음 ID:</span>
-        <span class="summary-val teal">${nextId !== null ? nextId.toLocaleString() : '사용 가능 ID 없음'}</span>
-      </div>
-      <div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:6px">
-        <span class="summary-key">사용 가능 범위:</span>
-        <div class="summary-ranges">
-          ${cat.ranges.map(r => `<span class="summary-range-badge">${r.min.toLocaleString()}~${r.max.toLocaleString()}</span>`).join('')}
-        </div>
-      </div>
-    </div>
-    <div class="summary-detail-toggle" onclick="toggleSummaryDetail(this)">▼ 상세 보기</div>
-    <div class="summary-detail-body">
-      <div class="detail-section-title">자동 데이터 (${autoItems.length}개)</div>
-      <div class="detail-items">
-        ${autoItems.length === 0 ? '<span style="font-size:12px;color:var(--text-muted)">없음</span>' :
-          autoItems.slice(0,50).map(x => `<span class="detail-item"><span class="detail-id">${x.id}</span><span class="detail-name"> ${escHtml(x.name)}</span></span>`).join('')
-          + (autoItems.length > 50 ? `<span class="detail-item">+${autoItems.length-50}개</span>` : '')
-        }
-      </div>
-      <div class="detail-section-title">임시 선점 (${manualItems.length}개)</div>
-      <div class="detail-items">
-        ${manualItems.length === 0 ? '<span style="font-size:12px;color:var(--text-muted)">없음</span>' :
-          manualItems.map(x => `<span class="detail-item temp"><span class="detail-id">${x.id}</span><span class="badge-temp">임시</span><span class="detail-name"> ${escHtml(x.name)}</span></span>`).join('')
-        }
-      </div>
-    </div>
-  `;
-  return card;
-}
-
-function toggleSummaryDetail(toggleEl) {
-  const detailBody = toggleEl.nextElementSibling;
-  const open = detailBody.classList.toggle('open');
-  toggleEl.textContent = open ? '▲ 상세 닫기' : '▼ 상세 보기';
-}
-
-// =============================================
-// renderSettingsTab
-// =============================================
-function renderSettingsTab() {
-  const list = document.getElementById('categoriesList');
-  list.innerHTML = '';
-  if (appState.categories.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📁</div>카테고리가 없습니다.</div>';
-    return;
-  }
-  for (let i = 0; i < appState.categories.length; i++) {
-    list.appendChild(buildCatSettingItem(appState.categories[i], i));
-  }
-}
-
-function buildCatSettingItem(cat, idx) {
-  const div = document.createElement('div');
-  div.className = 'cat-setting-item';
-  div.innerHTML = `
-    <div class="cat-setting-row">
-      <div class="cat-setting-left">
-        <div>
-          <span class="cat-setting-name">${escHtml(cat.name)}</span>
-          <span class="cat-setting-sheet">${escHtml(cat.sheet)}</span>
-        </div>
-        <div class="cat-setting-meta">
-          <div class="cat-meta-block">
-            <div class="cat-meta-label">ID 범위</div>
-            <div class="cat-ranges">
-              ${cat.ranges.map(r => `<div class="cat-range-row">${r.min.toLocaleString()} ~ ${r.max.toLocaleString()}</div>`).join('')}
+    <div class="content-area">
+        
+        <div id="tab-upload" class="tab-content active">
+            <h2>엑셀 파일 업로드</h2>
+            <p>데이터 및 밸런싱 파일을 업로드하여 자동으로 ID를 불러옵니다.</p>
+            <div class="upload-zone" onclick="document.getElementById('excel-file').click()">
+                <h3>엑셀 파일을 드래그하거나 클릭하여 업로드</h3>
+                <p>.xlsx, .xls 파일만 지원됩니다.</p>
+                <input type="file" id="excel-file" style="display: none;" accept=".xlsx, .xls" onchange="handleFileUpload(event)">
             </div>
-          </div>
-          <div class="cat-meta-block">
-            <div class="cat-meta-label">참조 열</div>
-            <div class="cat-cols">ID: <strong>${escHtml(cat.idCol)}</strong> / 이름: <strong>${escHtml(cat.nameCol)}</strong></div>
-          </div>
         </div>
-      </div>
-      <div class="cat-setting-btns">
-        <button class="btn btn-outline btn-sm" onclick="openEditModal(${idx})">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteCategory(${idx})">🗑️</button>
-      </div>
+
+        <div id="tab-reserve" class="tab-content">
+            <h2>ID 선점 등록</h2>
+            <p>사용 예정인 ID를 미리 선점하여 중복을 방지하세요. 여러 개를 한 번에 추가할 수 있습니다.</p>
+            <div id="reserve-container">
+                </div>
+            <button class="primary" onclick="saveManualData()">선점 데이터 저장 및 계산</button>
+        </div>
+
+        <div id="tab-result" class="tab-content">
+            <h2 style="text-align: center;">통합 결과 뷰</h2>
+            <p style="text-align: center; color: #666; margin-bottom: 30px;">자동 로드 데이터와 수동 선점 데이터를 통합하여 최신/다음 ID를 표시합니다.</p>
+            <div class="result-grid" id="result-container">
+                </div>
+        </div>
+
+        <div id="tab-settings" class="tab-content">
+            <h2>카테고리 설정</h2>
+            <p>엑셀 시트별 카테고리와 ID 범위를 설정하세요. 이 설정값에 따라 전체 시스템이 동작합니다.</p>
+            <div class="card">
+                <div id="settings-container">
+                    </div>
+                <button class="primary" style="margin-top: 15px;">+ 카테고리 추가 (개발 예정)</button>
+            </div>
+        </div>
+
     </div>
-  `;
-  return div;
-}
 
-function resetCategoriesToDefault() {
-  if (!confirm('카테고리를 기본값으로 초기화할까요? 수동 설정이 모두 사라집니다.')) return;
-  appState.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-  saveSharedStateToServer();
-  applyStateToUI();
-  showToast('기본값으로 초기화되었습니다', 'info');
-}
+    <script>
+        // --- 1. 기본 설정 데이터 (State) ---
+        // 사용자가 요청한 기본 베이스 설정값
+        const config = [
+            { id: 'factory', name: '공장', sheet: '공장', ranges: [[0, 53999]], colId: 'B', colName: 'F' },
+            { id: 'theme', name: '테마파크', sheet: '공장', ranges: [[93000, 93999], [94100, 94999]], colId: 'B', colName: 'F' },
+            { id: 'resort', name: '리조트', sheet: '리조트', ranges: [[99000, 99999]], colId: 'B', colName: 'F' },
+            { id: 'tower', name: '타워', sheet: '리조트', ranges: [[930001, 939999]], colId: 'B', colName: 'F' }
+        ];
 
-function deleteCategory(idx) {
-  const cat = appState.categories[idx];
-  if (!confirm(`"${cat.name}" 카테고리를 삭제할까요?`)) return;
-  appState.categories.splice(idx, 1);
-  saveSharedStateToServer();
-  applyStateToUI();
-  showToast(`"${cat.name}" 카테고리가 삭제되었습니다`, 'info');
-}
+        // 데이터 저장소
+        let autoData = {};   // 엑셀에서 불러온 최고 ID 저장
+        let manualData = {}; // 수동으로 입력한 ID 목록 저장
 
-// =============================================
-// Modal
-// =============================================
-function openAddModal() {
-  editingCatIndex = null;
-  document.getElementById('modalTitle').textContent = '카테고리 추가';
-  document.getElementById('mCatName').value = '';
-  document.getElementById('mSheetName').value = '';
-  document.getElementById('mIdCol').value = 'B';
-  document.getElementById('mNameCol').value = 'F';
-  initRangesEditor([{min: 0, max: 999}]);
-  document.getElementById('catModal').classList.add('open');
-}
+        // 초기화
+        config.forEach(c => {
+            autoData[c.id] = null;
+            manualData[c.id] = [];
+        });
 
-function openEditModal(idx) {
-  editingCatIndex = idx;
-  const cat = appState.categories[idx];
-  document.getElementById('modalTitle').textContent = '카테고리 수정';
-  document.getElementById('mCatName').value = cat.name;
-  document.getElementById('mSheetName').value = cat.sheet;
-  document.getElementById('mIdCol').value = cat.idCol;
-  document.getElementById('mNameCol').value = cat.nameCol;
-  initRangesEditor(cat.ranges);
-  document.getElementById('catModal').classList.add('open');
-}
+        // --- 2. 탭 전환 로직 ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
 
-function closeModal() {
-  document.getElementById('catModal').classList.remove('open');
-}
+            if(tabId === 'reserve') renderReserveUI();
+            if(tabId === 'result') renderResultUI();
+        }
 
-function initRangesEditor(ranges) {
-  const editor = document.getElementById('rangesEditor');
-  editor.innerHTML = '';
-  for (const r of ranges) addRangeRow(r.min, r.max);
-}
+        // --- 3. UI 렌더링 로직 ---
 
-function addRangeRow(minVal = '', maxVal = '') {
-  const editor = document.getElementById('rangesEditor');
-  const row = document.createElement('div');
-  row.className = 'range-editor-row';
-  row.innerHTML = `
-    <input class="form-input" type="number" placeholder="시작" value="${minVal}" />
-    <input class="form-input" type="number" placeholder="끝" value="${maxVal}" />
-    <button class="btn-remove-row" onclick="this.closest('.range-editor-row').remove()" title="삭제">×</button>
-  `;
-  editor.appendChild(row);
-}
+        // 카테고리 설정 렌더링 (보기용)
+        function renderSettings() {
+            const container = document.getElementById('settings-container');
+            container.innerHTML = config.map(c => `
+                <div class="setting-row">
+                    <strong>${c.name}</strong> | 시트: ${c.sheet} | 범위: ${c.ranges.map(r => `${r[0]}~${r[1]}`).join(', ')} | ID열: ${c.colId}, 이름열: ${c.colName}
+                </div>
+            `).join('');
+        }
 
-function saveCategoryModal() {
-  const name = document.getElementById('mCatName').value.trim();
-  const sheet = document.getElementById('mSheetName').value.trim();
-  const idCol = document.getElementById('mIdCol').value.trim().toUpperCase();
-  const nameCol = document.getElementById('mNameCol').value.trim().toUpperCase();
-  if (!name || !sheet || !idCol || !nameCol) {
-    showToast('모든 필드를 입력해주세요', 'error'); return;
-  }
-  const rangeRows = document.querySelectorAll('#rangesEditor .range-editor-row');
-  const ranges = [];
-  let rangeError = false;
-  rangeRows.forEach(row => {
-    const inputs = row.querySelectorAll('input');
-    const mn = parseInt(inputs[0].value, 10);
-    const mx = parseInt(inputs[1].value, 10);
-    if (isNaN(mn) || isNaN(mx) || mn > mx) { rangeError = true; return; }
-    ranges.push({min: mn, max: mx});
-  });
-  if (rangeError || ranges.length === 0) {
-    showToast('올바른 범위를 입력해주세요', 'error'); return;
-  }
+        // 수동 입력(선점) UI 렌더링 (카테고리별로 자동화)
+        function renderReserveUI() {
+            const container = document.getElementById('reserve-container');
+            if(container.innerHTML.trim() !== "") return; // 이미 렌더링 되었으면 스킵
 
-  const cat = { name, sheet, ranges, idCol, nameCol };
+            container.innerHTML = config.map(c => `
+                <div class="reserve-group" id="group-${c.id}">
+                    <div class="reserve-group-header">${c.name} <span style="font-size:12px; color:#666;">(시트: ${c.sheet} / 범위: ${c.ranges.map(r=>`${r[0]}~${r[1]}`).join(', ')})</span></div>
+                    <div class="reserve-rows">
+                        <div class="reserve-row">
+                            <input type="number" placeholder="ID 번호 (예: ${c.ranges[0][0]})" class="m-id">
+                            <input type="text" placeholder="이름 (예: ${c.name} - 임시건물)" class="m-name">
+                        </div>
+                    </div>
+                    <button class="btn-add-row" onclick="addReserveRow('${c.id}')">+ 행 추가</button>
+                </div>
+            `).join('');
+        }
 
-  if (editingCatIndex === null) {
-    appState.categories.push(cat);
-  } else {
-    appState.categories[editingCatIndex] = cat;
-  }
-  closeModal();
-  saveSharedStateToServer();
-  applyStateToUI();
-  showToast(`"${name}" 카테고리가 ${editingCatIndex === null ? '추가' : '수정'}되었습니다`, 'success');
-}
+        // 행 추가 버튼 동작
+        function addReserveRow(categoryId) {
+            const rowsContainer = document.querySelector(`#group-${categoryId} .reserve-rows`);
+            const newRow = document.createElement('div');
+            newRow.className = 'reserve-row';
+            newRow.innerHTML = `
+                <input type="number" placeholder="ID 번호" class="m-id">
+                <input type="text" placeholder="이름" class="m-name">
+                <button onclick="this.parentElement.remove()" style="padding:8px; cursor:pointer;">X</button>
+            `;
+            rowsContainer.appendChild(newRow);
+        }
 
-// ===== Modal backdrop click =====
-document.getElementById('catModal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
+        // 수동 데이터 저장 로직
+        function saveManualData() {
+            config.forEach(c => {
+                manualData[c.id] = [];
+                const rows = document.querySelectorAll(`#group-${c.id} .reserve-row`);
+                rows.forEach(row => {
+                    const idVal = row.querySelector('.m-id').value;
+                    const nameVal = row.querySelector('.m-name').value;
+                    if(idVal) {
+                        manualData[c.id].push({ id: parseInt(idVal), name: nameVal, isManual: true });
+                    }
+                });
+            });
+            alert('선점 데이터가 저장되었습니다. 통합 결과 탭에서 확인하세요.');
+            switchTab('result');
+        }
 
-// =============================================
-// Tab Switching
-// =============================================
-function switchTab(tabId, btn) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  document.getElementById('tab-' + tabId).classList.add('active');
-  btn.classList.add('active');
-}
+        // 다음 번호 계산 핵심 로직 (범위 점프 포함)
+        function calculateNextId(currentMaxId, ranges) {
+            if (currentMaxId === null) return ranges[0][0]; // 데이터가 없으면 첫 범위의 시작번호
+            
+            let nextId = currentMaxId + 1;
+            
+            for (let i = 0; i < ranges.length; i++) {
+                // 다음 ID가 현재 범위 안에 있으면 정상 반환
+                if (nextId >= ranges[i][0] && nextId <= ranges[i][1]) {
+                    return nextId;
+                }
+                // 다음 ID가 현재 범위의 최대값을 초과했고, 다음 범위가 있다면 다음 범위의 시작번호로 점프!
+                // (예: 테마파크 93999 다음은 94100)
+                if (nextId > ranges[i][1] && ranges[i+1]) {
+                     return ranges[i+1][0];
+                }
+            }
+            return "범위 초과 (사용 불가)";
+        }
 
-// =============================================
-// Toast
-// =============================================
-function showToast(msg, type = 'info') {
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  const icons = { success: '✓', error: '✕', info: 'ℹ' };
-  toast.innerHTML = `<span>${icons[type] || 'ℹ'}</span><span>${escHtml(msg)}</span>`;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity 0.3s';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
+        // 통합 결과 UI 렌더링 (요청하신 베이지색 적용)
+        function renderResultUI() {
+            const container = document.getElementById('result-container');
+            container.innerHTML = config.map(c => {
+                
+                // 엑셀에서 뽑은 최고 ID와 수동으로 적은 최고 ID 비교
+                const autoMax = autoData[c.id] || null;
+                const manualIds = manualData[c.id].map(m => m.id);
+                const manualMax = manualIds.length > 0 ? Math.max(...manualIds) : null;
+                
+                let finalLatestId = Math.max(autoMax || 0, manualMax || 0);
+                if(finalLatestId === 0) finalLatestId = null;
 
-// =============================================
-// Escape Helpers
-// =============================================
-function escHtml(str) {
-  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function escJs(str) {
-  return String(str || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-}
+                const isLatestManual = finalLatestId === manualMax && manualMax !== null;
+                const nextId = calculateNextId(finalLatestId, c.ranges);
 
-// =============================================
-// Init
-// =============================================
-async function init() {
-  // Init Supabase
-  initSupabase();
+                return `
+                <div class="result-card">
+                    <div class="result-title">
+                        ${c.name}
+                        ${isLatestManual ? '<span class="temp-badge">수동(임시) 반영됨</span>' : ''}
+                    </div>
+                    <div class="result-data">
+                        <span>사용 가능 범위:</span> 
+                        <span style="font-size:12px;">${c.ranges.map(r=>`${r[0]}~${r[1]}`).join('<br>')}</span>
+                    </div>
+                    <hr style="border:0; border-top:1px dashed #ccc; margin:10px 0;">
+                    <div class="result-data"><span>자동 로드 ID:</span> <span>${autoMax ? autoMax : '-'}</span></div>
+                    <div class="result-data"><span>수동 선점 건수:</span> <span>${manualData[c.id].length}건</span></div>
+                    <div class="result-data" style="margin-top:15px;">
+                        <span>최신 사용 ID:</span> 
+                        <span class="highlight-id">${finalLatestId ? finalLatestId : '데이터 없음'}</span>
+                    </div>
+                    <div class="result-data">
+                        <span><strong>사용할 다음 ID:</strong></span> 
+                        <span class="highlight-id" style="color:#d32f2f;">${nextId}</span>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
 
-  // Try to load from server
-  let serverPayload = null;
-  try {
-    serverPayload = await loadSharedStateFromServer();
-  } catch(e) { console.error(e); }
+        // --- 4. 엑셀 업로드 및 파싱 로직 ---
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-  if (serverPayload) {
-    mergeLocalAndServerState(serverPayload);
-    updateSaveStatus('saved', `서버에서 불러옴 · ${appState.lastSavedAt ? new Date(appState.lastSavedAt).toLocaleString() : ''}`);
-  } else {
-    // Fallback to localStorage
-    const local = loadFromLocalStorage();
-    if (local) {
-      mergeLocalAndServerState(local);
-      updateSaveStatus('saved', '로컬 캐시에서 불러옴');
-    } else {
-      // Default state
-      appState.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-      updateSaveStatus('saved', '초기 상태');
-    }
-  }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                
+                // 각 설정값(카테고리)별로 엑셀 데이터 검색
+                config.forEach(c => {
+                    const sheet = workbook.Sheets[c.sheet];
+                    if(sheet) {
+                        const json = XLSX.utils.sheet_to_json(sheet, {header: "A"});
+                        let maxIdInRanges = null;
 
-  setupDragDrop();
-  applyStateToUI();
-}
+                        json.forEach(row => {
+                            const idVal = parseInt(row[c.colId]); // 'B'열의 데이터
+                            if(!isNaN(idVal)) {
+                                // 해당 ID가 설정된 범위 중 하나에 속하는지 확인
+                                const isInRange = c.ranges.some(r => idVal >= r[0] && idVal <= r[1]);
+                                if(isInRange) {
+                                    if(maxIdInRanges === null || idVal > maxIdInRanges) {
+                                        maxIdInRanges = idVal;
+                                    }
+                                }
+                            }
+                        });
+                        autoData[c.id] = maxIdInRanges;
+                    }
+                });
 
-// Wait for libs
-window.addEventListener('DOMContentLoaded', () => {
-  // Small delay to ensure Supabase CDN loads
-  setTimeout(init, 200);
-});
-</script>
+                alert('엑셀 파일 분석이 완료되었습니다!');
+                document.getElementById('total-count').innerText = "업데이트 됨";
+                switchTab('result'); // 분석 완료 후 결과 탭으로 이동
+            };
+            reader.readAsArrayBuffer(file);
+        }
 
+        // 초기 실행
+        renderSettings();
+
+    </script>
 </body>
 </html>
